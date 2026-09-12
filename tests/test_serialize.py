@@ -1,7 +1,6 @@
 import json
 
-from rag_chunker import chunk_markdown, chunks_to_jsonl
-from rag_chunker.serialize import chunks_to_json_array
+from rag_chunker import chunk_markdown, chunks_to_json_array, chunks_to_jsonl
 
 
 def test_chunks_to_jsonl_empty_list_is_empty_string():

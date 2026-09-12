@@ -106,7 +106,8 @@ Other exports are useful on their own:
 | `parse_blocks(text)` | Markdown blocks: `heading`, `paragraph`, `list`, `code`, `table` |
 | `split_sentences(text)` | Sentence splitting with the abbreviation guard |
 | `estimate_tokens(text)` | The heuristic used for every `token_estimate` |
-| `chunks_to_jsonl(chunks)` | Serialise a chunk list |
+| `chunks_to_jsonl(chunks)` | Serialise a chunk list, one JSON object per line |
+| `chunks_to_json_array(chunks)` | Serialise a chunk list as one indented JSON array |
 
 ### What the parser recognises
 
