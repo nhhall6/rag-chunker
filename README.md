@@ -77,9 +77,31 @@ rag-chunker doc.md --max-tokens 512 --overlap 64 | jq -r .text | your-embedder
 | `--array` | off | Emit one indented JSON array instead of JSON lines |
 | `--stats` | off | Print a size summary to stderr |
 | `-o PATH` | stdout | Write the result to a file |
+| `--config PATH` | none | JSON file of default option values |
 
 Use `-` as the input path to read standard input. `--overlap` must be smaller
 than `--max-tokens`.
+
+### Config file
+
+`--config` points at a JSON object of option values to use as defaults, so a
+repeated invocation does not need every flag spelled out each time:
+
+```json
+{"max_tokens": 300, "overlap": 40, "stats": true}
+```
+
+```bash
+rag-chunker doc.md --config rag-chunker.json
+```
+
+Keys match the long flag names with dashes turned to underscores
+(`no_heading_prefix`, `array`, `stats`, `output`); there is no `input` key,
+since the document path changes on every run. Any flag also given on the
+command line overrides the value from the config file. Note that argparse
+has no way to un-set a `store_true` flag, so a config file that turns on
+`array` or `stats` cannot be turned back off from the command line for that
+invocation -- edit the config file instead.
 
 ## Library API
 

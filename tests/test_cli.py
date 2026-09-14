@@ -91,3 +91,77 @@ def test_main_returns_nonzero_for_missing_file(tmp_path, capsys):
 
     assert status == 1
     assert "rag-chunker:" in capsys.readouterr().err
+
+
+def test_main_config_file_supplies_defaults(tmp_path, capsys):
+    doc = tmp_path / "doc.md"
+    doc.write_text("Hello there.")
+    config = tmp_path / "rag-chunker.json"
+    config.write_text(json.dumps({"array": True, "stats": True}))
+
+    status = cli.main([str(doc), "--config", str(config)])
+
+    assert status == 0
+    out, err = capsys.readouterr()
+    assert isinstance(json.loads(out), list)
+    assert "oversized" in err
+
+
+def test_main_command_line_flag_overrides_config_file(tmp_path, capsys):
+    doc = tmp_path / "doc.md"
+    doc.write_text("Hello there.")
+    config = tmp_path / "rag-chunker.json"
+    config.write_text(json.dumps({"max_tokens": 5}))
+
+    status = cli.main([str(doc), "--config", str(config), "--max-tokens", "512"])
+
+    assert status == 0
+    record = json.loads(capsys.readouterr().out.strip())
+    assert record["oversized"] is False
+
+
+def test_main_config_file_rejects_unknown_key(tmp_path, capsys):
+    doc = tmp_path / "doc.md"
+    doc.write_text("Hello there.")
+    config = tmp_path / "rag-chunker.json"
+    config.write_text(json.dumps({"not_a_real_option": True}))
+
+    status = cli.main([str(doc), "--config", str(config)])
+
+    assert status == 1
+    assert "not_a_real_option" in capsys.readouterr().err
+
+
+def test_main_config_file_rejects_wrong_type(tmp_path, capsys):
+    doc = tmp_path / "doc.md"
+    doc.write_text("Hello there.")
+    config = tmp_path / "rag-chunker.json"
+    config.write_text(json.dumps({"max_tokens": "512"}))
+
+    status = cli.main([str(doc), "--config", str(config)])
+
+    assert status == 1
+    assert "max_tokens" in capsys.readouterr().err
+
+
+def test_main_config_file_rejects_bool_for_int_option(tmp_path, capsys):
+    doc = tmp_path / "doc.md"
+    doc.write_text("Hello there.")
+    config = tmp_path / "rag-chunker.json"
+    config.write_text(json.dumps({"overlap": True}))
+
+    status = cli.main([str(doc), "--config", str(config)])
+
+    assert status == 1
+    assert "overlap" in capsys.readouterr().err
+
+
+def test_main_returns_nonzero_for_missing_config_file(tmp_path, capsys):
+    doc = tmp_path / "doc.md"
+    doc.write_text("Hello there.")
+    missing = tmp_path / "missing.json"
+
+    status = cli.main([str(doc), "--config", str(missing)])
+
+    assert status == 1
+    assert "rag-chunker:" in capsys.readouterr().err

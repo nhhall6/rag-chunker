@@ -5,11 +5,25 @@ itself lives in :mod:`chunker`.
 """
 
 import argparse
+import json
 import sys
 
 from .chunker import chunk_markdown
 from .serialize import chunks_to_json_array, chunks_to_jsonl
 from .tokens import estimate_tokens
+
+# Keys a --config file may set, and the type each one must have. Matches
+# the argparse dest names 1:1 so the values can be handed straight to
+# parser.set_defaults(). "input" is deliberately excluded: it names the
+# document, which differs on every invocation.
+_CONFIG_SPEC = {
+    "max_tokens": int,
+    "overlap": int,
+    "no_heading_prefix": bool,
+    "array": bool,
+    "stats": bool,
+    "output": str,
+}
 
 
 def build_parser():
@@ -42,7 +56,35 @@ def build_parser():
         "-o", dest="output", metavar="PATH",
         help="write the result to a file instead of stdout",
     )
+    parser.add_argument(
+        "--config", metavar="PATH",
+        help="JSON file of default option values; any flag given on the "
+             "command line still overrides it",
+    )
     return parser
+
+
+def _load_config(path):
+    try:
+        with open(path, "r", encoding="utf-8") as handle:
+            data = json.load(handle)
+    except json.JSONDecodeError as error:
+        raise ValueError(f"{path}: {error}") from error
+
+    if not isinstance(data, dict):
+        raise ValueError(f"{path}: config file must contain a JSON object")
+
+    for key, value in data.items():
+        if key not in _CONFIG_SPEC:
+            raise ValueError(f"{path}: unknown config key {key!r}")
+        expected = _CONFIG_SPEC[key]
+        # bool is a subclass of int, so max_tokens/overlap would silently
+        # accept true/false without this extra check.
+        valid = isinstance(value, expected) and not (expected is int and isinstance(value, bool))
+        if not valid:
+            raise ValueError(f"{path}: {key!r} must be a {expected.__name__}")
+
+    return data
 
 
 def _read_source(path):
@@ -71,7 +113,25 @@ def _stats_line(chunks):
 
 
 def main(argv=None):
-    args = build_parser().parse_args(argv)
+    if argv is None:
+        argv = sys.argv[1:]
+
+    parser = build_parser()
+
+    # --config has to be known before the real parse so its values can
+    # seed the defaults that real flags on the command line then override.
+    peek = argparse.ArgumentParser(add_help=False)
+    peek.add_argument("--config")
+    config_path = peek.parse_known_args(argv)[0].config
+
+    if config_path:
+        try:
+            parser.set_defaults(**_load_config(config_path))
+        except (OSError, ValueError) as error:
+            print(f"rag-chunker: {error}", file=sys.stderr)
+            return 1
+
+    args = parser.parse_args(argv)
 
     try:
         text = _read_source(args.input)
